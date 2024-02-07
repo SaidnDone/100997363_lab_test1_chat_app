@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Chat Application</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <!-- Custom Styles -->
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .container {
+      max-width: 800px;
+      margin-top: 50px;
+    }
+    #messages {
+      list-style-type: none;
+      padding: 0;
+    }
+    #messages li {
+      margin-bottom: 10px;
+    }
+    #messages li .meta {
+      font-size: 12px;
+      color: #6c757d;
+    }
+    .typing {
+      font-style: italic;
+    }
+    .private-message-container {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="mb-4">Chat Room</h2>
+    <div class="mb-3">
+      <label for="room">Select Room:</label>
+      <select id="room" class="form-control">
+        <option value="devops">DevOps</option>
+        <option value="cloud">Cloud Computing</option>
+        <option value="covid19">COVID-19</option>
+        <option value="sports">Sports</option>
+        <option value="nodeJS">Node.js</option>
+      </select>
+    </div>
+    <ul id="messages" class="list-group"></ul>
+    <form id="form" class="mt-3">
+      <div class="input-group">
+        <input id="m" type="text" class="form-control" autocomplete="off" placeholder="Type your message..." />
+        <div class="input-group-append">
+          <button class="btn btn-primary" type="button">Send</button>
+        </div>
+      </div>
+    </form>
+    <p id="typing" class="typing mt-3"></p>
+
+    <div class="private-message-container mt-4">
+      <label for="privateUser">Send private message to:</label>
+      <select id="privateUser" class="form-control">
+        <!-- Users will be dynamically populated here -->
+      </select>
+      <button id="privateMessageBtn" class="btn btn-secondary mt-2">Send Private Message</button>
+    </div>
+
+    <!-- Join and Leave Room buttons -->
+    <div class="mt-3">
+      <button id="joinRoomBtn" class="btn btn-success">Join Room</button>
+      <button id="leaveRoomBtn" class="btn btn-danger">Leave Room</button>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS, Popper.js, and jQuery -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+  <script>
+    $(function () {
+      const socket = io();
+  const storedUsername = localStorage.getItem('username');
+  const storedRoom = localStorage.getItem('room');
+
+  if (!storedUsername || !storedRoom) {
+    window.location.href = '/login';
+  } else {
+    // Join the specified room
+    socket.emit('join room', storedRoom, () => {
+      socket.username = storedUsername;
+      socket.room = storedRoom;
+    });
+  }
+
+      $('#joinRoomBtn').click(function () {
+  const newRoom = prompt("Enter the room you want to join:");
+  if (newRoom) {
+    // Redirect to the chat page with the specified room
+    window.location.href = `/chat/${newRoom}`;
+  }
+});
+
+
+      // Leave Room button click handler
+      $('#leaveRoomBtn').click(function () {
+        if (socket.room) {
+          socket.emit('leave room', socket.room, () => {
+            socket.room = null;
+          });
+        }
+      });
+
+      // Previous code...
+
+      // Populate user list for private messaging
+      fetch('/users')
+        .then(response => response.json())
+        .then(users => {
+          $('#privateUser').empty();
+          users.forEach(user => {
+            $('#privateUser').append($('<option>').text(user.username).val(user.username));
+          });
+        })
+        .catch(error => console.error('Error fetching users:', error));
+
+      // Handle private messages
+      $('#privateMessageBtn').click(function () {
+        const privateUser = $('#privateUser').val();
+        const message = $('#m').val();
+        if (privateUser && message) {
+          socket.emit('private message', message, privateUser);
+          $('#m').val('');
+        }
+      });
+      // Handle chat messages
+    socket.on('chat message', function (data) {
+      updateChat(data);
+    });
+
+       // Update the chat message display
+    function updateChat(data) {
+      const messagesList = $('#messages');
+      messagesList.append(`<li class="list-group-item">${data.from_user}: ${data.message} <span class="meta">${data.date_sent}</span></li>`);
+      // Scroll to the bottom of the messages list to show the latest message
+      messagesList.scrollTop(messagesList[0].scrollHeight);
+    }
+      // Handle chat messages
+      socket.on('chat message', function (data) {
+        updateChat(data);
+      });
+    });
+  </script>
+
+</body>
+</html>
